@@ -1,0 +1,63 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
+from dotenv import load_dotenv
+import streamlit as st
+from langchain_core.prompts import PromptTemplate
+from groq import Groq
+
+load_dotenv()
+
+st.header("Multi Model AI Recipe Bot")
+
+temp = PromptTemplate(
+    template="""
+My query is {input}
+Give me an input in this format only:
+"recipe_name": "",
+"ingredients": [],
+"steps": [],
+"cooking_time": "",
+"difficulty_level": "",
+"nutrition_facts": ""
+""",
+    input_variables=["input"]
+)
+
+user_input = st.text_input("Enter a query:")
+user_choice = st.selectbox("Select model:", ["Gemini", "Groq"])
+
+prompt = temp.invoke({'input': user_input})
+
+if user_choice == "Gemini":
+    if st.button("Generate with Gemini"):
+        model = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+        result = model.invoke(prompt)
+        st.write(result.content)
+
+elif user_choice == "Groq":
+    if st.button("Generate with Groq"):
+        client = Groq(api_key="Enter_your_own_api_key")
+        placeholder = st.empty()
+        full_response = ""
+
+        stream = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": f"""
+                My query is {user_input}
+                Give me an input in this JSON format only:
+                "recipe_name": "",
+                "ingredients": [],
+                "steps": [],
+                "cooking_time": "",
+                "difficulty_level": "",
+                "nutrition_facts": ""
+                """},
+                {"role": "user", "content": user_input}
+            ],
+            stream=True
+        )
+
+        for chunk in stream:
+            if hasattr(chunk.choices[0].delta, "content") and chunk.choices[0].delta.content:
+                full_response += chunk.choices[0].delta.content
+                placeholder.markdown(full_response)
